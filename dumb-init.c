@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    signal(SIGCHLD, reap_zombies);
+    //signal(SIGCHLD, reap_zombies);
 
     /* launch our process */
     child_pid = fork();
