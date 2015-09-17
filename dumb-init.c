@@ -47,20 +47,14 @@ void reap_zombies(int signum) {
      * PID 1. If that child later exits, it becomes a zombie process until its
      * parent (now dumb-init) calls wait() on it.
      */
-    int status, exit_status;
+    int status;
     pid_t killed_pid;
 
     assert(signum == SIGCHLD);
     DEBUG("Received SIGCHLD, calling waitpid().\n");
 
     while ((killed_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        exit_status = WEXITSTATUS(status);
-        DEBUG("A child with PID %d exited with exit status %d.\n", killed_pid, exit_status);
-
-        if (killed_pid == child_pid) {
-            DEBUG("Child exited with status %d. Goodbye.\n", exit_status);
-            exit(exit_status);
-        }
+        DEBUG("A child with PID %d exited with exit status %d.\n", killed_pid, WEXITSTATUS(status));
     }
 }
 
@@ -154,9 +148,15 @@ int main(int argc, char *argv[]) {
         execvp(argv[1], &argv[1]);
     } else {
         DEBUG("Child spawned with PID %d.\n", child_pid);
-        for (;;) {
-            pause();
-        }
+
+        /* wait for child to exit */
+        int status, exit_status;
+        waitpid(child_pid, &status, 0);
+        exit_status = WEXITSTATUS(status);
+
+        DEBUG("Child exited with status %d. Goodbye.\n", exit_status);
+
+        return exit_status;
     }
 
     return 0;
