@@ -90,9 +90,9 @@ void forward_signal(int signum) {
 void handle_signal(int signum) {
     DEBUG("Received signal %d.\n", signum);
     if (signum == SIGCHLD) {
-        int status, exit_status;
+        int status, exit_status = 0;
         pid_t killed_pid;
-        while ((killed_pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        while ((killed_pid = waitpid(-1, &status, 0)) > 0) {
             if (WIFEXITED(status)) {
                 exit_status = WEXITSTATUS(status);
                 DEBUG("A child with PID %d exited with exit status %d.\n", killed_pid, exit_status);
@@ -104,10 +104,12 @@ void handle_signal(int signum) {
 
             if (killed_pid == child_pid) {
                 forward_signal(SIGTERM);  // send SIGTERM to any remaining children
-                DEBUG("Child exited with status %d. Goodbye.\n", exit_status);
-                exit(exit_status);
             }
         }
+        perror("waitpid");
+        DEBUG("waitpid returned: %d\n", killed_pid);
+        DEBUG("No more children. Last exit status: %d. Goodbye.\n", exit_status);
+        exit(exit_status);
     } else {
         forward_signal(signum);
         if (signum == SIGTSTP || signum == SIGTTOU || signum == SIGTTIN) {
