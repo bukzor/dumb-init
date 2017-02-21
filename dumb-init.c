@@ -116,8 +116,8 @@ void handle_signal(int signum) {
         }
 
         // ps -efj --forest
-        cmd `
-        execvp(cmd[0], &cmd[0]);
+//        cmd `
+//        execvp(cmd[0], &cmd[0]);
 
         if (killed_pid == -1) {
             // No children left, don't bother with perror(waitpid)
