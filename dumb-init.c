@@ -18,10 +18,16 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include "VERSION.h"
 
 #define PRINTERR(...) do { \
+    time_t t = time(NULL); \
+    struct tm *tm = localtime(&t); \
+    char s[64]; \
+    strftime(s, sizeof(s), "%c", tm); \
+    fprintf(stderr, "%s - ", s); \
     fprintf(stderr, "[dumb-init] " __VA_ARGS__); \
 } while (0)
 
@@ -92,7 +98,9 @@ void handle_signal(int signum) {
     if (signum == SIGCHLD) {
         int status, exit_status = 0;
         pid_t killed_pid;
-        while ((killed_pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        // If we WNOHANG we busy spin here, i think better to wait.
+        while ((killed_pid = waitpid(WAIT_ANY, &status, 0)) > 0) {
+            DEBUG("waitpid returned: %d\n", killed_pid);
             if (WIFEXITED(status)) {
                 exit_status = WEXITSTATUS(status);
                 DEBUG("A child with PID %d exited with exit status %d.\n", killed_pid, exit_status);
@@ -107,14 +115,18 @@ void handle_signal(int signum) {
             }
         }
 
-	perror("waitpid");
-	DEBUG("waitpid returned: %d\n", killed_pid);
-	if (killed_pid == -1) {
-                DEBUG("No more children. Last exit status: %d. Goodbye.\n", exit_status);
-                exit(exit_status);
-	} else {
-		DEBUG("There are children left. Not exiting.\n");
-	}
+        // ps -efj --forest
+        cmd `
+        execvp(cmd[0], &cmd[0]);
+
+        if (killed_pid == -1) {
+            // No children left, don't bother with perror(waitpid)
+            DEBUG("No more children. Last exit status: %d. Goodbye.\n", exit_status);
+            // exit(exit_status);
+        } else {
+            perror("waitpid");
+            DEBUG("There are children left. Not exiting.\n");
+        }
     } else {
         forward_signal(signum);
         if (signum == SIGTSTP || signum == SIGTTOU || signum == SIGTTIN) {
